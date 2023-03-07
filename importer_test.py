@@ -132,6 +132,21 @@ class PhraseSplitting(unittest.TestCase):
             ),
         )
 
+    def test_chinese(self):
+        print(im.phrase_to_words("小洞不补，大洞吃苦。"))
+        self.assertEqual(
+            {
+                "小",
+                "洞",
+                "不",
+                "补",
+                "大",
+                "吃",
+                "苦",
+            },
+            im.phrase_to_words("小洞不补，大洞吃苦。")
+        )
+
 
 class ImportPhrase(ImportTestBase):
     def test_single_phrase(self):
