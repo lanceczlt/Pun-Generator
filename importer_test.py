@@ -2,13 +2,22 @@ import unittest
 import importer_json_to_sqlite as im
 import sqlite3 as sql
 
+"""
+Tests for importer_json_to_sqlite
+Some tests merely check that the input does not crash the program
+"""
 
-class ImportWord(unittest.TestCase):
+
+class ImportTestBase(unittest.TestCase):
+    """provides setup that creates an in-memory DB"""
+
     def setUp(self):
         self.conn = sql.connect(":memory:")
         self.cursor = self.conn.cursor()
         im.create_all_tables(self.cursor)
 
+
+class ImportWord(ImportTestBase):
     def test_single_values(self):
         im.import_item_word(
             self.cursor,
@@ -121,6 +130,70 @@ class PhraseSplitting(unittest.TestCase):
             im.phrase_to_words(
                 "Вместо холодного и горького, этот напиток в Европе превратился к началу XVII века в горячий и сладкий."
             ),
+        )
+
+
+class ImportPhrase(ImportTestBase):
+    def test_single_phrase(self):
+        im.import_item_phrase(
+            self.cursor,
+            {"type": "phrase", "phrase": "this is my phrase", "source": {}},
+        )
+
+    def test_multi_phrase(self):
+        im.import_item_phrase(
+            self.cursor,
+            {
+                "type": "phrase",
+                "phrases": ["salt and pepper", "salt of the earth"],
+                "source": {"foo": "bar", "nufoo": "nubar"},
+            },
+        )
+
+
+class ImportWordAssoc(ImportTestBase):
+    def test_missing_assoc(self):
+        im.import_item_word_assoc(self.cursor, {"type": "word_assoc", "source": {}})
+        im.import_item_word_assoc(
+            self.cursor, {"type": "word_assoc", "assocs": [], "source": {}}
+        )
+
+    def test_missing_assoc_items(self):
+        im.import_item_word_assoc(
+            self.cursor,
+            {
+                "type": "word_assoc",
+                "assocs": [
+                    {"word1": "apple"},
+                    {"word2": "banana"},
+                    {"word1": "apple", "word2": "banana"},
+                ],
+                "source": {},
+            },
+        )
+
+    def test_single_values(self):
+        im.import_item_word_assoc(
+            self.cursor,
+            {
+                "type": "word_assoc",
+                "assoc": {"word1": "apple", "word2": "fruit", "type": "is-a"},
+                "source": {"name": "unittesting"},
+            },
+        )
+
+    def test_multi_values(self):
+        im.import_item_word_assoc(
+            self.cursor,
+            {
+                "type": "word_assoc",
+                "assocs": [
+                    {"word1": "smoothie", "word2": "breakfast", "type": "is-a"},
+                    {"word1": "smoothie", "word2": "drink", "type": "is-a"},
+                    {"word1": "juice", "word2": "drink", "type": "is-a"},
+                ],
+                "source": {"name": "test"},
+            },
         )
 
 
