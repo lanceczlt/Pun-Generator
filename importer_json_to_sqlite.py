@@ -7,12 +7,28 @@ import io
 from collections.abc import Iterable
 
 """
-TODO: handle versioning
+'recommended' API: functions prefixed with 'import_'
+
+TODO: handle versioning,
+    : improve handling of absent source
 """
 
+# global constants
+
+# used if word_assoc entry is missing 'type' field
+DEFAULT_ASSOC_TYPE = "generic"
+
+# used if no source was given
+# sqlite supports None even for Primary Key. may eventually replace with special id
+ABSENT_SOURCE_ID = None
 
 # https://www.sqlite.org/withoutrowid.html
 # to be considered: using 'withoutrowid'
+# according to:
+# https://www.sqlite.org/autoinc.html
+# we probably don't need autoinc. Would primarily be a problem if
+# we didn't enforce foreign key constraints when *deleting* rows
+# no row deletion ATM
 tables: list[tuple[str, list[str]]] = [
     (
         "tag",
@@ -34,8 +50,9 @@ tables: list[tuple[str, list[str]]] = [
     (
         "source_metadata",
         [
-            "metadata_id INTEGER PRIMARY KEY",
             "src_id INTEGER",
+            "metadata_id INTEGER",
+            "PRIMARY KEY (src_id, metadata_id)"
             "FOREIGN KEY(metadata_id) REFERENCES metadata(metadata_id)",
             "FOREIGN KEY(src_id) REFERENCES source(src_id)",
         ],
@@ -66,13 +83,22 @@ tables: list[tuple[str, list[str]]] = [
         ],
     ),
     (
+        "assoc_type",
+        [
+            "assoc_type_id INTEGER PRIMARY KEY",
+            "name TEXT",
+        ],
+    ),
+    (
         "word_assoc",
         [
             "word1 TEXT",
             "word2 TEXT",
             "src_id INTEGER",
-            "PRIMARY KEY (word1, word2, src_id)",
+            "assoc_type_id INTEGER",
+            "PRIMARY KEY (word1, word2, src_id, assoc_type_id)",
             "FOREIGN KEY (src_id) REFERENCES source(src_id)",
+            "FOREIGN KEY (assoc_type_id) REFERENCES assoc_type(assoc_type_id)",
         ],
     ),
     (
@@ -141,6 +167,35 @@ def tag_to_id(cursor: sqlite3.Cursor, tag_name: str) -> int:
     return id
 
 
+# cached tag_name -> tag_id
+CACHED_ASSOC_TYPE_IDS: dict[str, int] = {}
+
+
+def assoc_type_to_id(cursor: sqlite3.Cursor, assoc_type: str) -> int:
+    """
+    Creates the word-assoc-type if it DNE. Returns its id
+    """
+    cached_id = CACHED_ASSOC_TYPE_IDS.get(assoc_type)
+    if cached_id is not None:
+        return cached_id
+
+    row: tuple[int] | None = cursor.execute(
+        "SELECT assoc_type_id FROM assoc_type WHERE assoc_type.name == ?", [assoc_type]
+    ).fetchone()
+    if row is None:
+        cursor.execute("INSERT INTO assoc_type(name) VALUES(?)", [assoc_type])
+        id = cursor.lastrowid
+    else:
+        id = row[0]
+
+    assert (
+        id is not None
+    )  # just to convince mypy. not handling failed insertions anyway
+
+    CACHED_ASSOC_TYPE_IDS[assoc_type] = id
+    return id
+
+
 def insert_metadata(cursor: sqlite3.Cursor, tag_id: int, val: str):
     """
     Inserts a single metadata entry and returns the metadata_id
@@ -153,6 +208,9 @@ def insert_source(cursor: sqlite3.Cursor, source: dict[str, str | list[str]]) ->
     """
     Inserts a source object and returns the new ID
     """
+    if source is None:
+        return ABSENT_SOURCE_ID
+
     src_id = source_to_id(cursor)
     for tag_name, val in source.items():
         vals = [val] if isinstance(val, str) else val
@@ -216,13 +274,16 @@ def insert_word_source(cursor: sqlite3.Cursor, word: str, src_id: int):
     )
 
 
-def insert_word_assoc(cursor: sqlite3.Cursor, word1: str, word2: str, src_id: int):
+def insert_word_assocs(
+    cursor: sqlite3.Cursor, assocs: Iterable[tuple[str, str, int, int]]
+):
     """
+    assocs: (word1, word2, src_id, assoc_type_id)*
     Inserts, returns nothing
     """
-    cursor.execute(
-        "INSERT OR IGNORE INTO word_assoc(word1, word2, src_id) VALUES(?, ?, ?)",
-        (word1, word2, src_id),
+    cursor.executemany(
+        "INSERT OR IGNORE INTO word_assoc(word1, word2, src_id, assoc_type_id) VALUES(?, ?, ?, ?)",
+        assocs,
     )
 
 
@@ -246,9 +307,28 @@ def insert_phrase_words(cursor: sqlite3.Cursor, phrase_id: int, words: Iterable[
     Inserts phrase word by word, returns nothing
     """
     cursor.executemany(
-        "INSERT INTO phrase(phrase_id, word) VALUES(?, ?)",
+        "INSERT INTO phrase_words(phrase_id, word) VALUES(?, ?)",
         ((phrase_id, word) for word in words),
     )
+
+
+def __get_and_normalize(
+    keys: Iterable[str], dic: dict[str, str | Iterable[str]]
+) -> None | Iterable[str]:
+    """
+    Uses the first key in @keys to not map to None in @dic.
+    Returns None if all of the keys did
+    With that val, given a str or iterable of strs, returns equivalent iterable of strs.
+    i.e., wraps single str into iterable
+    """
+    val = None
+    for key in keys:
+        val = dic.get(key)
+        if val is None:
+            continue
+        return (val,) if isinstance(val, str) else val
+    # no keys didn't produce None, so return None
+    return None
 
 
 def import_item(cursor: sqlite3.Cursor, obj: dict):
@@ -260,6 +340,8 @@ def import_item(cursor: sqlite3.Cursor, obj: dict):
             print("received json with no type field")
         case "word":
             import_item_word(cursor, obj)
+        case "assoc" | "word_assoc":
+            import_item_word_assoc(cursor, obj)
         case "phrase":
             import_item_phrase(cursor, obj)
         case "paragraph":
@@ -277,21 +359,50 @@ def import_item_word(cursor: sqlite3.Cursor, obj: dict):
         source: {},
     }
     """
-    spellings = obj.get("spellings")
+    spellings = __get_and_normalize(("spellings", "spelling"), obj)
     if spellings is None or len(spellings) == 0:
         return
-    spellings = [spellings] if isinstance(spellings, str) else spellings
     insert_spellings(cursor, spellings)
 
-    phonetics = obj.get("phonetics")
-    if phonetics is not None:
-        phonetics = [phonetics] if isinstance(phonetics, str) else phonetics
+    phonetics = __get_and_normalize(("phonetics", "phonetic"), obj)
+    if phonetics is not None and len(phonetics) != 0:
         insert_word_phonetic(cursor, min(spellings), phonetics)
 
     source = obj.get("source")
-    if source is not None:
-        source_id = insert_source(cursor, source)
-        insert_word_source(cursor, min(spellings), source_id)
+
+    source_id = insert_source(cursor, source)
+    insert_word_source(cursor, min(spellings), source_id)
+
+
+def import_item_word_assoc(cursor: sqlite3.Cursor, obj: dict):
+    """
+    obj schema: {
+        type: 'word_assoc' or 'assoc'
+        assocs: [
+            {
+                word1: str,
+                word2: str,
+                type: str (optional, defaults to 'generic')
+            },
+        ],
+        source: {}
+    }
+    """
+    source = obj.get("source")
+    source_id = insert_source(cursor, source)
+
+    assocs = obj.get("assocs", obj.get("assoc"))
+    if assocs is None or len(assocs) == 0:
+        return
+    if isinstance(assocs, dict):
+        assocs = (assocs,)
+
+    assoc_stream = (
+        (assoc["word1"], assoc["word2"], source_id, assoc.get("type", "generic"))
+        for assoc in assocs
+        if isinstance(assoc, dict) and "word1" in assoc and "word2" in assoc
+    )
+    insert_word_assocs(cursor, assoc_stream)
 
 
 PHRASE_SPLITTER = re.compile(r"\W+")
@@ -318,25 +429,17 @@ def import_item_phrase(cursor: sqlite3.Cursor, obj: dict):
         source: {}
     }
     """
-    phrases = obj.get("phrases")
+    phrases = __get_and_normalize(("phrases", "phrase"), obj)
     if phrases is None:
-        if "phrase" in obj:
-            phrases = obj["phrase"]
-        else:
-            return
-
-    if isinstance(phrases, str):
-        phrases = [phrases]
+        return
 
     source = obj.get("source")
-    if source is not None:
-        source_id = insert_source(cursor, source)
+    source_id = insert_source(cursor, source)
 
     for phrase in phrases:
         phrase_id = insert_phrase(cursor, phrase)
         insert_phrase_words(cursor, phrase_id, phrase_to_words(phrase))
-        if source is not None:
-            insert_phrase_source(cursor, phrase_id, source_id)
+        insert_phrase_source(cursor, phrase_id, source_id)
 
 
 def import_item_paragraph(cursor: sqlite3.Cursor, obj: dict):
@@ -349,7 +452,7 @@ def import_stream(cursor: sqlite3.Cursor, in_stream):
     """
     Custom delimiters should be applied via the 'newline' kw-arg when creating the stream.
 
-    :param in_stream: should support readline()
+    :param in_stream: file-like obj where readline() yields a single JSON instance
     """
     for line in in_stream:
         item = json.loads(line)
