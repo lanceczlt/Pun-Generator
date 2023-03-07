@@ -168,7 +168,7 @@ def source_to_id(cursor: sqlite3.Cursor):
     """
     Inserts the source and returns the new ID
     """
-    cursor.execute("INSERT INTO source() DEFAULT VALUES")
+    cursor.execute("INSERT INTO source DEFAULT VALUES")
     return cursor.lastrowid
 
 
@@ -278,12 +278,14 @@ def import_item_word(cursor: sqlite3.Cursor, obj: dict):
     }
     """
     spellings = obj.get("spellings")
-    if spellings is None:
+    if spellings is None or len(spellings) == 0:
         return
+    spellings = [spellings] if isinstance(spellings, str) else spellings
     insert_spellings(cursor, spellings)
 
     phonetics = obj.get("phonetics")
     if phonetics is not None:
+        phonetics = [phonetics] if isinstance(phonetics, str) else phonetics
         insert_word_phonetic(cursor, min(spellings), phonetics)
 
     source = obj.get("source")
@@ -305,7 +307,7 @@ def phrase_to_words(phrase: str) -> set[str]:
     # P <= NP <<< NLP
     # todo: remove 's from \w+ 's (\W+|$).
     # todo: replace ' quotes with " ? or vice versa?
-    return {s.lower() for s in re.split(PHRASE_SPLITTER, phrase)}
+    return {s.lower() for s in re.split(PHRASE_SPLITTER, phrase) if len(s) != 0}
 
 
 def import_item_phrase(cursor: sqlite3.Cursor, obj: dict):
