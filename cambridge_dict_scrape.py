@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
-
 def getPhonetic(word):
     url = 'https://dictionary.cambridge.org/us/dictionary/english/' + word
     page = requests.get(url, headers=headers)
@@ -16,6 +15,7 @@ def getPhonetic(word):
         'div', class_='pos-header dpos-h').find_all('span', 'ipa dipa lpr-2 lpl-1')
 
     output = []
+    
     for phon in phonetic:
         output.append(phon.get_text())
 
@@ -29,8 +29,12 @@ def getSpellings(word):
 
     spellings = soup.find('div', 'pos-header dpos-h').find('span', 'hw dhw')
     altSpell = soup.find('div', 'pos-header dpos-h').find('span', 'v dv lmr-0')
+    
+    output = [spellings.get_text()]
 
-    output = [spellings.get_text(), altSpell.get_text()]
+    if(altSpell != None):
+        output.append(altSpell.get_text())
+
     return output
 
 
@@ -51,4 +55,3 @@ def packJSON(word):
     return output
 
 
-# print(packJSON('adapter'))
