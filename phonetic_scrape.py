@@ -15,6 +15,9 @@ def getPhonetic(word):
 
     phonetic = soup.find(
         'span', class_='pron-spell-content css-7iphl0 evh0tcl1')
+    
+    if phonetic is None:
+        return None
 
     phonetic = re.sub('[\[\]\']+', '', phonetic.get_text())
 
@@ -69,6 +72,10 @@ def getSpellings(word):
     soup = BeautifulSoup(page.text, 'html.parser')
     spellings = soup.find('div', class_='css-jv03sw e1wg9v5m6')
     altSpell = soup.find('h3', class_='css-1flgti4 ea1n8qa2')
+
+    if spellings is None:
+        return None
+
     spellings = re.sub('[^a-zA-Z]', '', spellings.get_text())
 
     spellingList = [spellings]
