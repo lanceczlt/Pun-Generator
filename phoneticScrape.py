@@ -16,6 +16,9 @@ def getPhonetic(word):
     phonetic = soup.find(
         'span', class_='pron-spell-content css-7iphl0 evh0tcl1')
 
+    if phonetic is None:
+        return None
+
     phonetic = re.sub('[\[\]\']+', '', phonetic.get_text())
 
     # phonetic = re.sub(',[^,]*', "", phonetic.get_text())
@@ -26,7 +29,7 @@ def getPhonetic(word):
     mid = []
     suffix = []
 
-    if(len(phonetic.split(',')) == 1):
+    if (len(phonetic.split(',')) == 1):
         return [phonetic.strip()]
 
     phonetic = phonetic.strip().replace(' ', '').split(',')
@@ -50,7 +53,7 @@ def getPhonetic(word):
 
     empty = []
 
-    if(mid != empty):
+    if (mid != empty):
         for pref in prefix:
             for mids in mid:
                 for sufs in suffix:
@@ -69,11 +72,15 @@ def getSpellings(word):
     soup = BeautifulSoup(page.text, 'html.parser')
     spellings = soup.find('div', class_='css-jv03sw e1wg9v5m6')
     altSpell = soup.find('h3', class_='css-1flgti4 ea1n8qa2')
+
+    if spellings is None:
+        return None
+
     spellings = re.sub('[^a-zA-Z]', '', spellings.get_text())
 
     spellingList = [spellings]
 
-    if(altSpell != None):
+    if (altSpell != None):
         altSpell = re.sub('[^\w\s]', '', altSpell.get_text())
         altSpell = re.sub('^or', '', altSpell)
         for alt in altSpell.split(' or '):
