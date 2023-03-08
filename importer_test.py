@@ -31,7 +31,8 @@ class ImportWord(ImportTestBase):
 
         self.assertEqual(
             ("potato", "pəˈteɪ.təʊ"),
-            self.cursor.execute("SELECT word, phonetic FROM word_phonetic").fetchone(),
+            self.cursor.execute(
+                "SELECT word, phonetic FROM word_phonetic").fetchone(),
         )
         pass
 
@@ -53,6 +54,59 @@ class ImportWord(ImportTestBase):
             list(self.cursor.execute("SELECT word, phonetic FROM word_phonetic")),
         )
         pass
+
+
+class AltPhraseSplitting(unittest.TestCase):
+    """
+    Testing alternative phrase splitter
+    """
+
+    def test_en_contractions(self):
+        self.assertEqual(
+            {
+                "this",
+                "is",
+                "an",
+                "ordinary",
+                "english-sentence",
+                "with",
+                "some",
+                "varying",
+                "punctu4t1on",
+                "e.g",
+                "dog-eat-dog",
+                "shouldn't",
+                "we",
+                "just",
+                "get",
+                "along",
+                "they'll",
+                "i'm",
+                "jason's",
+            },
+            im.alt_phrase_to_words(
+                "This... is an, 'ORDINARY!' English-sentence   with some (varying) #punctu4t1on@. e.g. dog-eat-dog ?!shouldN't wE@ just,- get along they'll, I'm Jason's?"
+            )
+        )
+
+    def test_es(self):
+        self.assertEqual(
+            {
+                "hay",
+                "4",
+                "estadounidenses",
+                "secuestrados",
+                "en",
+                "méxico",
+                "qué",
+                "saben",
+                "las",
+                "autoridades",
+            },
+            im.alt_phrase_to_words(
+                "Hay 4 estadounidenses secuestrados en México: ¿qué saben las autoridades?"
+            )
+        )
 
 
 class PhraseSplitting(unittest.TestCase):
@@ -85,12 +139,15 @@ class PhraseSplitting(unittest.TestCase):
         # todo: decide if this is the appropriate output (omitting .)
         self.assertEqual(
             {"dr", "mr", "mrs", "walter", "jr", "sr", "esq", "ms", "jackson"},
-            im.phrase_to_words("Dr. Mr. Mrs. Walter Jr., Sr., Esq., Ms. Jackson,"),
+            im.phrase_to_words(
+                "Dr. Mr. Mrs. Walter Jr., Sr., Esq., Ms. Jackson,"),
         )
 
     def test_spanish(self):
         self.assertEqual(
             {
+                "me",
+                "gusta",
                 "hay",
                 "4",
                 "estadounidenses",
@@ -103,7 +160,7 @@ class PhraseSplitting(unittest.TestCase):
                 "autoridades",
             },
             im.phrase_to_words(
-                "Hay 4 estadounidenses secuestrados en México: ¿qué saben las autoridades?"
+                "¡me gusta! Hay 4 estadounidenses secuestrados en México: ¿qué saben las autoridades?"
             ),
         )
 
@@ -168,7 +225,8 @@ class ImportPhrase(ImportTestBase):
 
 class ImportWordAssoc(ImportTestBase):
     def test_missing_assoc(self):
-        im.import_item_word_assoc(self.cursor, {"type": "word_assoc", "source": {}})
+        im.import_item_word_assoc(
+            self.cursor, {"type": "word_assoc", "source": {}})
         im.import_item_word_assoc(
             self.cursor, {"type": "word_assoc", "assocs": [], "source": {}}
         )

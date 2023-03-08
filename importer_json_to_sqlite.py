@@ -1,3 +1,4 @@
+from string import punctuation
 import sqlite3
 import argparse
 import json
@@ -180,7 +181,8 @@ def assoc_type_to_id(cursor: sqlite3.Cursor, assoc_type: str) -> int:
         return cached_id
 
     row: tuple[int] | None = cursor.execute(
-        "SELECT assoc_type_id FROM assoc_type WHERE assoc_type.name == ?", [assoc_type]
+        "SELECT assoc_type_id FROM assoc_type WHERE assoc_type.name == ?", [
+            assoc_type]
     ).fetchone()
     if row is None:
         cursor.execute("INSERT INTO assoc_type(name) VALUES(?)", [assoc_type])
@@ -200,7 +202,8 @@ def insert_metadata(cursor: sqlite3.Cursor, tag_id: int, val: str):
     """
     Inserts a single metadata entry and returns the metadata_id
     """
-    cursor.execute("INSERT INTO metadata(tag_id, val) VALUES(?, ?)", (tag_id, val))
+    cursor.execute(
+        "INSERT INTO metadata(tag_id, val) VALUES(?, ?)", (tag_id, val))
     return cursor.lastrowid
 
 
@@ -299,7 +302,8 @@ def insert_phrase_source(cursor: sqlite3.Cursor, phrase_id: int, src_id: int):
     """
     Inserts source for phrase, returns nothing
     """
-    cursor.execute("INSERT OR IGNORE INTO phrase_src(src_id) VALUES(?)", [src_id])
+    cursor.execute(
+        "INSERT OR IGNORE INTO phrase_src(src_id) VALUES(?)", [src_id])
 
 
 def insert_phrase_words(cursor: sqlite3.Cursor, phrase_id: int, words: Iterable[str]):
@@ -398,7 +402,8 @@ def import_item_word_assoc(cursor: sqlite3.Cursor, obj: dict):
         assocs = (assocs,)
 
     assoc_stream = (
-        (assoc["word1"], assoc["word2"], source_id, assoc.get("type", "generic"))
+        (assoc["word1"], assoc["word2"],
+         source_id, assoc.get("type", "generic"))
         for assoc in assocs
         if isinstance(assoc, dict) and "word1" in assoc and "word2" in assoc
     )
@@ -419,6 +424,26 @@ def phrase_to_words(phrase: str) -> set[str]:
     # todo: remove 's from \w+ 's (\W+|$).
     # todo: replace ' quotes with " ? or vice versa?
     return {s.lower() for s in re.split(PHRASE_SPLITTER, phrase) if len(s) != 0}
+
+
+def alt_phrase_to_words(phrase: str) -> set[str]:
+    """Splits a string representing a phrase into a set of words. Preserves contractions and hyphenated words.
+    e.g. dog-eat-dog and shouldn't will be preserved
+
+    Note that abbreviations like "i.e." will be output as "i.e" and similarly "Dr." --> "dr"
+
+    Args:
+        phrase (str): String representing a phrase
+
+    Returns:
+        set[str]: A set of lowercase words with no leading or trailing punctuation
+    """
+    tokens = phrase.split()
+    words = set()
+    for token in tokens:
+        words.add(token.lower().strip(punctuation + "¡¿"))
+
+    return words
 
 
 def import_item_phrase(cursor: sqlite3.Cursor, obj: dict):
@@ -467,7 +492,8 @@ if __name__ == "__main__":
         Items should be separated by 'sep', and 'sep' should not appear in the data of an entry
         """,
     )
-    parser.add_argument("db_path", help="path to the DB instance to connect to")
+    parser.add_argument(
+        "db_path", help="path to the DB instance to connect to")
     parser.add_argument(
         "--sep",
         nargs="?",
