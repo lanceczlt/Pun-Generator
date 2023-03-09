@@ -1,3 +1,6 @@
+# machine-specific files
+.idea/
+**/.DS_Store
 .env
 
 # dep caches
