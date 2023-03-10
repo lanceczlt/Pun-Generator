@@ -2,20 +2,21 @@ import requests
 import os
 import json
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
+from selenium import webdriver
 import time
 from genius import scrape_genius
 import requests
 import re
-
+import chromedriver_autoinstaller
 # used to convert language code to name (e.g. "en" --> "English")
 from iso639 import Lang
 
 # load env to access Genius API token
 from dotenv import load_dotenv
 load_dotenv()
+
+chromedriver_autoinstaller.install()
 
 """
 TODO: Abstract retrieval of song metadata.
