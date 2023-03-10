@@ -1,53 +1,55 @@
 import sqlite3 as sql
 import argparse
 import requests
-import sys
-import io
+import itertools as its
 from collections.abc import Iterable
 
 API_BASE_URL = "https://api.datamuse.com/words"
 
+
 def find_rhymes_api(word: str) -> Iterable[str]:
     params = {
-        'rel_rhy': word,
-        'max': 500,
+        "rel_rhy": word,
+        "max": 500,
     }
     response = requests.get(API_BASE_URL, params=params)
     response.raise_for_status()
-    return (result['word'] for result in response.json())
+    return (result["word"] for result in response.json())
 
 
-def find_rhymes(cursor: sql.Cursor, input: str, mode: str) -> Iterable[str]:
-    if mode == 'phrase':
-        words = input.split()
-    elif mode == 'word':
-        words = [input]
+def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str]:
+    words: list[str]
+    if mode == "phrase":
+        words = list(its.chain.from_iterable(item.split() for item in input))
+    elif mode == "word":
+        words = input
 
-    rhyming_words = set()
+    rhyming_words: set[str] = set()
     for word in words:
         rhyming_words.update(find_rhymes_api(word))
 
-    rhyming_phrases = set()
+    rhyming_phrases: set[str] = set()
     for word in rhyming_words:
-        query = f"SELECT phrase FROM phrases WHERE phrase LIKE '% {word}'"
+        query = "SELECT phrase FROM phrase WHERE phrase LIKE ?"
         # limiting to 20 for each word currently
-        for row in cursor.execute(query).fetchmany(20):
+        for row in cursor.execute(query, (f"% {word}",)).fetchmany(20):
             rhyming_phrases.add(row[0])
 
     results = []
     for phrase in rhyming_phrases:
         for word in words:
-            if f' {word}' in phrase:
-                rhymed_phrase = phrase.replace(f' {word}', f' {input}')
-                result = f'original phrase: {phrase}\n rhymed phrase: {rhymed_phrase}\n'
+            if f" {word}" in phrase:
+                rhymed_phrase = phrase.replace(f" {word}", f" {input}")
+                result = f"original phrase: {phrase}\n rhymed phrase: {rhymed_phrase}\n"
                 results.append(result)
-
     return results
+
 
 def print_result(result):
     print("-" * 30)
     print(result)
     print("-" * 30)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -82,19 +84,12 @@ if __name__ == "__main__":
 
     conn_path = args.db_path
     conn = sql.connect(conn_path)
-    cursor = conn.cursor()
+    cursor: sql.Cursor = conn.cursor()
 
-    input = args.input
-    mode = args.mode
+    input: list[str] = args.input
+    mode: str = args.mode
     # todo: handle stdin, etc
-
-    results = list(find_rhymes(cursor, input, mode))
-    if not results:
-        print("No rhyming phrases found.")
-    else:
-        for result in results:
-            print_result(result)
-
+    print(f"INPUT: {input}")
     for result in find_rhymes(cursor, input, mode):
         # todo: consider buffering, delayed flushing
-        print_results(result)
+        print_result(result)
