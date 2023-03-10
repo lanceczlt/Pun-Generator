@@ -9,10 +9,9 @@ from bs4 import BeautifulSoup
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
 def getPhonetic(word):
-
     # filter punctuation
     word = re.sub('[^\w\'-]','', word)
-    #if ' is at end, e.g for words like thinkin', waitin'
+    # if word has ' , substitutes ' with g to handle words like thinkin', waitin'
     if re.search('\'$', word):
         word = re.sub('\'$', 'g', word)
 
@@ -20,13 +19,11 @@ def getPhonetic(word):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-
     if soup.find('div', class_='pos-header dpos-h') is None:
         return None
 
     phonetic = soup.find(
         'div', class_='pos-header dpos-h').find_all('span', 'ipa dipa lpr-2 lpl-1')
-
 
     output = []
     
@@ -37,8 +34,10 @@ def getPhonetic(word):
 
 
 def getSpellings(word):
+    # filter punctuation
     word = re.sub('[^\w\'-]','', word)
-    originWord = word 
+    # if word has ' , substitutes ' with g to handle words like thinkin', waitin'
+    originWord = word.lower() 
     if re.search('\'$', word):
         word = re.sub('\'$', 'g', word)
 
@@ -46,14 +45,11 @@ def getSpellings(word):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-
     if soup.find('div', 'pos-header dpos-h') is None:
         return None
     
     spellings = soup.find('div', 'pos-header dpos-h').find('span', 'hw dhw')
     altSpell = soup.find('div', 'pos-header dpos-h').find('span', 'v dv lmr-0')
-    
-
 
     output = [spellings.get_text()]
 

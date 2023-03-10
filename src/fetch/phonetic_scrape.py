@@ -9,10 +9,14 @@ headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
 
 def getPhonetic(word):
-    
+
     word = re.sub('[^\w\'-]','', word)
+    phoneticSing = False
     if re.search('\'$', word):
         word = re.sub('\'$', 'g', word)
+        phoneticSing = True
+    # if re.search('’$', word):
+    #     word = re.sub('’$', 'g', word)
 
     word = re.sub('\'','-', word)
     url = 'https://www.dictionary.com/browse/' + word
@@ -36,6 +40,9 @@ def getPhonetic(word):
     prefix = []
     mid = []
     suffix = []
+
+    if phoneticSing:
+        suffix.append('sing')
 
     if(len(phonetic.split(',')) == 1):
         return [phonetic.strip()]
@@ -75,11 +82,17 @@ def getPhonetic(word):
 
 
 def getSpellings(word):
-
+    
     word = re.sub('[^\w\'-]','', word)
-    originWord = word 
+    originWord = word.lower()
+  
     if re.search('\'$', word):
         word = re.sub('\'$', 'g', word)
+    # if re.search('’$', word):
+    #     word = re.sub('’$', '\'', word)
+    #     originWord = word.lower()
+    #     word = re.sub('\'$', 'g', word)
+
 
     word = re.sub('\'','-', word)
     url = 'https://www.dictionary.com/browse/' + word
@@ -103,11 +116,14 @@ def getSpellings(word):
 
     if re.search('\'$', originWord):
         spellingList.append(originWord)
+    # if re.search('’$', originWord):
+    #     spellingList.append(originWord)
 
     return spellingList
 
 
 def packJSON(word):
+
     source = {
         "site_name": 'Dictionary.com',
         "URL": 'https://www.dictionary.com/browse/' + word,
