@@ -19,6 +19,7 @@ load_dotenv()
 
 
 def get_top100_urls():
+    
     """Uses Selenium ChromeDriver to scrape page links to the top 100 songs on Genius.com.
     These links are then passed to top100_link_to_api(url) where the page is scraped for lyrics and song_id.
     song_id is then used to query the Genius API and retrieve relevant metadata about the song.
