@@ -3,6 +3,7 @@ import os
 import json
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.by import By
 from selenium import webdriver
 import time
 from genius import scrape_genius
