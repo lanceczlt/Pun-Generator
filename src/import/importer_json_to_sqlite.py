@@ -530,13 +530,15 @@ def import_item_paragraph(cursor: sqlite3.Cursor, obj: dict):
     """
 
 
-def import_stream(cursor: sqlite3.Cursor, in_stream):
+def import_stream(cursor: sqlite3.Cursor, in_stream: Iterable[str]):
     """
     Custom delimiters should be applied via the 'newline' kw-arg when creating the stream.
 
     :param in_stream: file-like obj where readline() yields a single JSON instance
     """
     for line in in_stream:
+        if line is None or not line.strip():
+            continue
         item = json.loads(line)
         import_item(cursor, item)
 
@@ -561,7 +563,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     conn_path = args.db_path
-    conn = sqlite3.connect(conn_path)
+    conn = sqlite3.connect(conn_path, isolation_level=None)
     cursor = conn.cursor()
 
     create_all_tables(cursor)
