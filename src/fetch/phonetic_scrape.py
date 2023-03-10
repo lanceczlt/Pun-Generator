@@ -23,11 +23,11 @@ def getPhonetic(word):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    if soup.find('span', class_='pron-spell-content css-7iphl0 evh0tcl1') is None:
+    if soup.find('span', class_='pron-ipa-content css-7iphl0 evh0tcl1') is None:
         return None
 
     phonetic = soup.find(
-        'span', class_='pron-spell-content css-7iphl0 evh0tcl1')
+        'span', class_='pron-ipa-content css-7iphl0 evh0tcl1')
     
 
 
@@ -135,7 +135,7 @@ def packJSON(word):
         "phonetics": getPhonetic(word),
         "source": source
     }
-
+ 
     output = json.dumps(json_schema)
     return output
 
