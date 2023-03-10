@@ -5,7 +5,7 @@ import json
 import re
 import sys
 import io
-from collections.abc import Iterable
+from collections.abc import Iterable, Collection
 
 """
 'recommended' API: functions prefixed with 'import_'
@@ -59,27 +59,38 @@ tables: list[tuple[str, list[str]]] = [
         ],
     ),
     (
+        "word_spelling",
+        [
+            "word_id INTEGER PRIMARY KEY",
+            "spelling TEXT NOT NULL UNIQUE",
+        ],
+    ),
+    (
         "alt_spelling",
         [
-            "word1 TEXT",
-            "word2 TEXT",
-            "PRIMARY KEY (word1, word2)",
+            "word1_id INTEGER",
+            "word2_id INTEGER",
+            "PRIMARY KEY (word1_id, word2_id)",
+            "FOREIGN KEY (word1_id) REFERENCES word_spelling(word_id)",
+            "FOREIGN KEY (word2_id) REFERENCES word_spelling(word_id)",
         ],
     ),
     (
         "word_phonetic",
         [
-            "word TEXT",
+            "word_id INTEGER",
             "phonetic TEXT",
-            "PRIMARY KEY (word, phonetic)",
+            "PRIMARY KEY (word_id, phonetic)",
+            "FOREIGN KEY (word_id) REFERENCES word_spelling(word_id)",
         ],
     ),
     (
         "word_src",
         [
-            "word TEXT",
+            "word_id INTEGER",
             "src_id INTEGER",
-            "PRIMARY KEY (word, src_id)",
+            "PRIMARY KEY (word_id, src_id)",
+            "FOREIGN KEY (word_id) REFERENCES word_spelling(word_id)",
             "FOREIGN KEY (src_id) REFERENCES source(src_id)",
         ],
     ),
@@ -93,11 +104,13 @@ tables: list[tuple[str, list[str]]] = [
     (
         "word_assoc",
         [
-            "word1 TEXT",
-            "word2 TEXT",
+            "word1_id INTEGER",
+            "word2_id INTEGER",
             "src_id INTEGER",
             "assoc_type_id INTEGER",
-            "PRIMARY KEY (word1, word2, src_id, assoc_type_id)",
+            "PRIMARY KEY (word1_id, word2_id, src_id, assoc_type_id)",
+            "FOREIGN KEY (word1_id) REFERENCES word_spelling(word_id)",
+            "FOREIGN KEY (word2_id) REFERENCES word_spelling(word_id)",
             "FOREIGN KEY (src_id) REFERENCES source(src_id)",
             "FOREIGN KEY (assoc_type_id) REFERENCES assoc_type(assoc_type_id)",
         ],
@@ -122,9 +135,10 @@ tables: list[tuple[str, list[str]]] = [
         "phrase_words",
         [
             "phrase_id INTEGER",
-            "word TEXT",
-            "PRIMARY KEY (phrase_id, word)",
-            "FOREIGN KEY(phrase_id) REFERENCES phrase(phrase_id)",
+            "word_id INTEGER",
+            "PRIMARY KEY (phrase_id, word_id)",
+            "FOREIGN KEY (phrase_id) REFERENCES phrase(phrase_id)",
+            "FOREIGN KEY (word_id) REFERENCES word_spelling(word_id)",
         ],
     ),
 ]
@@ -181,8 +195,7 @@ def assoc_type_to_id(cursor: sqlite3.Cursor, assoc_type: str) -> int:
         return cached_id
 
     row: tuple[int] | None = cursor.execute(
-        "SELECT assoc_type_id FROM assoc_type WHERE assoc_type.name == ?", [
-            assoc_type]
+        "SELECT assoc_type_id FROM assoc_type WHERE assoc_type.name = ?", [assoc_type]
     ).fetchone()
     if row is None:
         cursor.execute("INSERT INTO assoc_type(name) VALUES(?)", [assoc_type])
@@ -202,12 +215,13 @@ def insert_metadata(cursor: sqlite3.Cursor, tag_id: int, val: str):
     """
     Inserts a single metadata entry and returns the metadata_id
     """
-    cursor.execute(
-        "INSERT INTO metadata(tag_id, val) VALUES(?, ?)", (tag_id, val))
+    cursor.execute("INSERT INTO metadata(tag_id, val) VALUES(?, ?)", (tag_id, val))
     return cursor.lastrowid
 
 
-def insert_source(cursor: sqlite3.Cursor, source: dict[str, str | list[str]]) -> int:
+def insert_source(
+    cursor: sqlite3.Cursor, source: dict[str, str | list[str]] | None
+) -> int | None:
     """
     Inserts a source object and returns the new ID
     """
@@ -244,48 +258,80 @@ def insert_source_metadata(cursor: sqlite3.Cursor, metadata_id: int, src_id: int
     )
 
 
-def insert_spellings(cursor: sqlite3.Cursor, words: Iterable[str]):
+# cache
+CACHED_WORD_SPELLING_IDS: dict[str, int] = {}
+
+
+def spelling_to_id(cursor: sqlite3.Cursor, spelling: str):
     """
-    Takes a sequence of words and inserts them as equivalent spellings for each other
+    Given a spelling, returns the word_id, creating an entry if needed.
+    """
+    cached_id = CACHED_WORD_SPELLING_IDS.get(spelling)
+    if cached_id is not None:
+        return cached_id
+
+    row: tuple[int] | None = cursor.execute(
+        "SELECT word_id FROM word_spelling WHERE word_spelling.spelling = ?",
+        (spelling,),
+    ).fetchone()
+
+    if row is None:
+        cursor.execute("INSERT INTO word_spelling(spelling) VALUES(?)", (spelling,))
+        id = cursor.lastrowid
+    else:
+        id = row[0]
+    assert id is not None
+    CACHED_WORD_SPELLING_IDS[spelling] = id
+    return id
+
+
+def insert_spellings(cursor: sqlite3.Cursor, words: Collection[str]):
+    """
+    Takes a sequence of words (spellings) and inserts them as equivalent spellings for each other
     For space and time, only entries involving the lexicographically lowest word are made
     """
-    lowest = min(words)
-    params = ((lowest, word) for word in words if word != lowest)
+    lowest = spelling_to_id(cursor, min(words))
+    params = [
+        (lowest, spelling_to_id(cursor, word)) for word in words if word != lowest
+    ]
     cursor.executemany(
-        "INSERT OR IGNORE INTO alt_spelling(word1, word2) VALUES(?, ?)", params
+        "INSERT OR IGNORE INTO alt_spelling(word1_id, word2_id) VALUES(?, ?)", params
     )
 
 
-def insert_word_phonetic(cursor: sqlite3.Cursor, word: str, phonetics: Iterable[str]):
+def insert_word_phonetic(
+    cursor: sqlite3.Cursor, word_id: int, phonetics: Iterable[str]
+):
     """
     Inserts all the phonetics as pronounciations for 'word', returns nothing
     """
     if not phonetics:
         return
     cursor.executemany(
-        "INSERT OR IGNORE INTO word_phonetic(word, phonetic) VALUES(?, ?)",
-        ((word, phon) for phon in phonetics),
+        "INSERT OR IGNORE INTO word_phonetic(word_id, phonetic) VALUES(?, ?)",
+        ((word_id, phon) for phon in phonetics),
     )
 
 
-def insert_word_source(cursor: sqlite3.Cursor, word: str, src_id: int):
+def insert_word_source(cursor: sqlite3.Cursor, word_id: int, src_id: int | None):
     """
     Inserts word-source, returns nothing
     """
     cursor.execute(
-        "INSERT OR IGNORE INTO word_src(word, src_id) VALUES(?, ?)", (word, src_id)
+        "INSERT OR IGNORE INTO word_src(word_id, src_id) VALUES(?, ?)",
+        (word_id, src_id),
     )
 
 
 def insert_word_assocs(
-    cursor: sqlite3.Cursor, assocs: Iterable[tuple[str, str, int, int]]
+    cursor: sqlite3.Cursor, assocs: Iterable[tuple[int, int, int | None, int]]
 ):
     """
     assocs: (word1, word2, src_id, assoc_type_id)*
-    Inserts, returns nothing
+    Inserts, returns nothingpython is genexpr recursive
     """
     cursor.executemany(
-        "INSERT OR IGNORE INTO word_assoc(word1, word2, src_id, assoc_type_id) VALUES(?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO word_assoc(word1_id, word2_id, src_id, assoc_type_id) VALUES(?, ?, ?, ?)",
         assocs,
     )
 
@@ -298,27 +344,28 @@ def insert_phrase(cursor: sqlite3.Cursor, phrase: str):
     return cursor.lastrowid
 
 
-def insert_phrase_source(cursor: sqlite3.Cursor, phrase_id: int, src_id: int):
+def insert_phrase_source(cursor: sqlite3.Cursor, phrase_id: int, src_id: int | None):
     """
     Inserts source for phrase, returns nothing
     """
-    cursor.execute(
-        "INSERT OR IGNORE INTO phrase_src(src_id) VALUES(?)", [src_id])
+    cursor.execute("INSERT OR IGNORE INTO phrase_src(src_id) VALUES(?)", [src_id])
 
 
-def insert_phrase_words(cursor: sqlite3.Cursor, phrase_id: int, words: Iterable[str]):
+def insert_phrase_words(
+    cursor: sqlite3.Cursor, phrase_id: int, word_ids: Iterable[int]
+):
     """
     Inserts phrase word by word, returns nothing
     """
     cursor.executemany(
-        "INSERT INTO phrase_words(phrase_id, word) VALUES(?, ?)",
-        ((phrase_id, word) for word in words),
+        "INSERT INTO phrase_words(phrase_id, word_id) VALUES(?, ?)",
+        [(phrase_id, word_id) for word_id in word_ids],
     )
 
 
 def __get_and_normalize(
-    keys: Iterable[str], dic: dict[str, str | Iterable[str]]
-) -> None | Iterable[str]:
+    keys: Iterable[str], dic: dict[str, str | Collection[str]]
+) -> None | Collection[str]:
     """
     Uses the first key in @keys to not map to None in @dic.
     Returns None if all of the keys did
@@ -342,11 +389,11 @@ def import_item(cursor: sqlite3.Cursor, obj: dict):
     match obj.get("type"):
         case None:
             print("received json with no type field")
-        case "word":
+        case "word" | "words":
             import_item_word(cursor, obj)
         case "assoc" | "word_assoc":
             import_item_word_assoc(cursor, obj)
-        case "phrase":
+        case "phrase" | "phrases":
             import_item_phrase(cursor, obj)
         case "paragraph":
             import_item_paragraph(cursor, obj)
@@ -368,14 +415,16 @@ def import_item_word(cursor: sqlite3.Cursor, obj: dict):
         return
     insert_spellings(cursor, spellings)
 
+    min_spelling_id = spelling_to_id(cursor, min(spellings))
+
     phonetics = __get_and_normalize(("phonetics", "phonetic"), obj)
     if phonetics is not None and len(phonetics) != 0:
-        insert_word_phonetic(cursor, min(spellings), phonetics)
+        insert_word_phonetic(cursor, min_spelling_id, phonetics)
 
     source = obj.get("source")
 
     source_id = insert_source(cursor, source)
-    insert_word_source(cursor, min(spellings), source_id)
+    insert_word_source(cursor, min_spelling_id, source_id)
 
 
 def import_item_word_assoc(cursor: sqlite3.Cursor, obj: dict):
@@ -401,12 +450,16 @@ def import_item_word_assoc(cursor: sqlite3.Cursor, obj: dict):
     if isinstance(assocs, dict):
         assocs = (assocs,)
 
-    assoc_stream = (
-        (assoc["word1"], assoc["word2"],
-         source_id, assoc.get("type", "generic"))
+    assoc_stream = [
+        (
+            spelling_to_id(cursor, assoc["word1"]),
+            spelling_to_id(cursor, assoc["word2"]),
+            source_id,
+            assoc_type_to_id(cursor, assoc.get("type", "generic")),
+        )
         for assoc in assocs
         if isinstance(assoc, dict) and "word1" in assoc and "word2" in assoc
-    )
+    ]
     insert_word_assocs(cursor, assoc_stream)
 
 
@@ -463,7 +516,11 @@ def import_item_phrase(cursor: sqlite3.Cursor, obj: dict):
 
     for phrase in phrases:
         phrase_id = insert_phrase(cursor, phrase)
-        insert_phrase_words(cursor, phrase_id, phrase_to_words(phrase))
+        insert_phrase_words(
+            cursor,
+            phrase_id,
+            (spelling_to_id(cursor, word) for word in phrase_to_words(phrase)),
+        )
         insert_phrase_source(cursor, phrase_id, source_id)
 
 
@@ -492,8 +549,7 @@ if __name__ == "__main__":
         Items should be separated by 'sep', and 'sep' should not appear in the data of an entry
         """,
     )
-    parser.add_argument(
-        "db_path", help="path to the DB instance to connect to")
+    parser.add_argument("db_path", help="path to the DB instance to connect to")
     parser.add_argument(
         "--sep",
         nargs="?",
