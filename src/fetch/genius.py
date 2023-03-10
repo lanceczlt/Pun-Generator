@@ -11,6 +11,17 @@ from iso639 import Lang
 from dotenv import load_dotenv
 load_dotenv()
 
+"""
+TODO: Abstract retrieval of song metadata.
+
+Currently, songs URLs are either 
+    - retrieved via the Genius API search (which already yields song metadata)
+    - scraped from top 100 charts using Selenium (along with song_id)
+
+--> Write a function that takes in flexible arguments so it can output song metadata for either option
+--> Goal is to end up with scrape lyrics function, retrieve metadata function, output as JSON function
+"""
+
 
 def scrape_genius(url):
     """Scrapes lyrics from the input Genius Lyrics song url
@@ -103,15 +114,6 @@ def fetch_genius(artist):
 
     return output_json_list
 
-
-# def test_genius_fetch():
-#     artist = input("Enter an artist's name:")
-#     json_list = fetch_genius(artist)
-#     for json in json_list:
-#         print(json)
-
-
-# test_genius_fetch()
 
 def main():
     artist = input("Enter an artist's name:")

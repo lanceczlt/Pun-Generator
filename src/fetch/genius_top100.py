@@ -17,9 +17,19 @@ from iso639 import Lang
 from dotenv import load_dotenv
 load_dotenv()
 
+"""
+TODO: Abstract retrieval of song metadata.
+
+Currently, songs URLs are either 
+    - retrieved via the Genius API search (which already yields song metadata)
+    - scraped from top 100 charts using Selenium (along with song_id)
+
+--> Write a function that takes in flexible arguments so it can output song metadata for either option
+--> Goal is to end up with scrape lyrics function, retrieve metadata function, output as JSON function
+"""
+
 
 def get_top100_urls():
-    
     """Uses Selenium ChromeDriver to scrape page links to the top 100 songs on Genius.com.
     These links are then passed to top100_link_to_api(url) where the page is scraped for lyrics and song_id.
     song_id is then used to query the Genius API and retrieve relevant metadata about the song.
