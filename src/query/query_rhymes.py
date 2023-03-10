@@ -19,6 +19,7 @@ def find_rhymes_api(word: str) -> Iterable[str]:
 
 def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str]:
     words: list[str]
+
     if mode == "phrase":
         words = list(its.chain.from_iterable(item.split() for item in input))
     elif mode == "word":
@@ -28,27 +29,24 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
     for word in words:
         rhyming_words.update(find_rhymes_api(word))
 
-    rhyming_phrases: set[str] = set()
+    rhyming_phrases: set[Tuple[str, str]] = set()
     for word in rhyming_words:
         query = "SELECT phrase FROM phrase WHERE phrase LIKE ?"
         # limiting to 20 for each word currently
         for row in cursor.execute(query, (f"% {word}",)).fetchmany(20):
-            rhyming_phrases.add(row[0])
+            rhyming_phrases.add((word, row[0]))
 
     results = []
-    for phrase in rhyming_phrases:
-        for word in words:
-            if f" {word}" in phrase:
-                rhymed_phrase = phrase.replace(f" {word}", f" {input}")
-                result = f"original phrase: {phrase}\n rhymed phrase: {rhymed_phrase}\n"
-                results.append(result)
+    for phrase_tuple in rhyming_phrases:
+        rhyme_word = phrase_tuple[0]
+        phrase = phrase_tuple[1]
+        rhymed_phrase = phrase.replace(f" {rhyme_word}", f" {words[0]}")
+        result = f"original phrase: {phrase}\nrhymed phrase: {rhymed_phrase}\n"
+        results.append(result)
+
     return results
 
 
-def print_result(result):
-    print("-" * 30)
-    print(result)
-    print("-" * 30)
 
 
 if __name__ == "__main__":
@@ -58,19 +56,18 @@ if __name__ == "__main__":
         Querys a DB instance for rhymes
         """,
     )
-    parser.add_argument("db_path", help="path to the DB instance to connect to")
-    parser.add_argument(
-        "input",
+    parser.add_argument("db_path", 
+        help="path to the DB instance to connect to"
+    )
+    parser.add_argument("input",
         nargs="+",
         help="the input to find related rhymes for",
     )
-    parser.add_argument(
-        "--std-in",
+    parser.add_argument( "--std-in",
         help="if present, read input from stdin. each line corresponds to an input",
     )
-    parser.add_argument(
-        "--mode",
-        # took out wordblob for now
+    parser.add_argument("--mode",
+        # took out phrase for now
         choices=["word", "wordblob"],
         default="word",
         help="""
@@ -88,8 +85,8 @@ if __name__ == "__main__":
 
     input: list[str] = args.input
     mode: str = args.mode
+
     # todo: handle stdin, etc
     print(f"INPUT: {input}")
     for result in find_rhymes(cursor, input, mode):
-        # todo: consider buffering, delayed flushing
-        print_result(result)
+        print(result)
