@@ -9,15 +9,23 @@ headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
 
 def getPhonetic(word):
+    
+    word = re.sub('[^\w\'-]','', word)
+    if re.search('\'$', word):
+        word = re.sub('\'$', 'g', word)
+
+    word = re.sub('\'','-', word)
     url = 'https://www.dictionary.com/browse/' + word
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
+    if soup.find('span', class_='pron-spell-content css-7iphl0 evh0tcl1') is None:
+        return None
+
     phonetic = soup.find(
         'span', class_='pron-spell-content css-7iphl0 evh0tcl1')
     
-    if phonetic is None:
-        return None
+
 
     phonetic = re.sub('[\[\]\']+', '', phonetic.get_text())
 
@@ -67,16 +75,23 @@ def getPhonetic(word):
 
 
 def getSpellings(word):
+
+    word = re.sub('[^\w\'-]','', word)
+    originWord = word 
+    if re.search('\'$', word):
+        word = re.sub('\'$', 'g', word)
+
+    word = re.sub('\'','-', word)
     url = 'https://www.dictionary.com/browse/' + word
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
-    spellings = soup.find('div', class_='css-jv03sw e1wg9v5m6')
-    altSpell = soup.find('h3', class_='css-1flgti4 ea1n8qa2')
 
-    if spellings is None:
+    if soup.find('div', class_='css-jv03sw e1wg9v5m6') is None:
         return None
 
-    spellings = re.sub('[^a-zA-Z]', '', spellings.get_text())
+    spellings = soup.find('div', class_='css-jv03sw e1wg9v5m6')
+    altSpell = soup.find('h3', class_='css-1flgti4 ea1n8qa2')
+    spellings = re.sub('[0-9]', '', spellings.get_text())
 
     spellingList = [spellings]
 
@@ -85,6 +100,9 @@ def getSpellings(word):
         altSpell = re.sub('^or', '', altSpell)
         for alt in altSpell.split(' or '):
             spellingList.append(alt.strip())
+
+    if re.search('\'$', originWord):
+        spellingList.append(originWord)
 
     return spellingList
 
@@ -106,6 +124,12 @@ def packJSON(word):
     return output
 
 
-# print(packJSON('hello'))
-# print(packJSON('adapter'))
-# print(packJSON('glamor'))
+def generate_json_output():
+    user_input = input("Enter a sentence or word: ")
+
+    words = user_input.split()
+
+    for word in words: 
+        print(packJSON(word))
+
+generate_json_output()
