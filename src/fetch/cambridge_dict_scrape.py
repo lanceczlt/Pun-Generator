@@ -15,7 +15,7 @@ headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 def getPhonetic(word) -> list[str] | None:
     # filter punctuation
-    word = re.sub("[^\w'-]", "", word)
+    word = re.sub("[^\w']", "", word)
     # if word has ' , substitutes ' with g to handle words like thinkin', waitin'
     if re.search("'$", word):
         word = re.sub("'$", "g", word)
@@ -41,7 +41,7 @@ def getPhonetic(word) -> list[str] | None:
 
 def getSpellings(word) -> list[str] | None:
     # filter punctuation
-    word = re.sub("[^\w'-]", "", word)
+    word = re.sub("[^\w']", "", word)
     # if word has ' , substitutes ' with g to handle words like thinkin', waitin'
     originWord = word.lower()
     if re.search("'$", word):
@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
     for item in items:
         words = item.split()
-        for word in (w.strip(punctuation) for w in words):
+        for word in (w.strip() for w in words):
             if not word.strip():
                 continue
             json_str = packJSON(word)
