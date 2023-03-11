@@ -1,5 +1,10 @@
+# DB instance
+**/*.sqlite
+**/*.sqlite3
+
 # machine-specific files
 .idea/
+.vscode/
 **/.DS_Store
 .env
 
