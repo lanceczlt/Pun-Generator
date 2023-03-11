@@ -15,7 +15,7 @@ headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 def getPhonetic(word) -> list[str] | None:
     # filter punctuation
-    word = re.sub("[^\w']", "", word)
+    word = re.sub("[^\w'-]", "", word)
     # if word has ' , substitutes ' with g to handle words like thinkin', waitin'
     if re.search("'$", word):
         word = re.sub("'$", "g", word)
@@ -41,7 +41,7 @@ def getPhonetic(word) -> list[str] | None:
 
 def getSpellings(word) -> list[str] | None:
     # filter punctuation
-    word = re.sub("[^\w']", "", word)
+    word = re.sub("[^\w'-]", "", word)
     # if word has ' , substitutes ' with g to handle words like thinkin', waitin'
     originWord = word.lower()
     if re.search("'$", word):
