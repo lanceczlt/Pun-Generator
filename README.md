@@ -1,4 +1,4 @@
-## PunGenT: Pun Generator Tool
+## PunGenT: Pun Generation Toolchain
 ##### Lance Choong, Eren Kahriman, Thai Truong, and Jason Wan
 
 Welcome to PunGenT, a project aimed at offering a list of puns based on a user's input. The project is being developed by Lance Choong, Eren Kahriman, Thai Truong, and Jason Wan as part of CSDS 395.
@@ -13,3 +13,9 @@ In light of these shortcomings, the purpose of this research project is to creat
 **Scope**
 
 The PunGenT project is expected to produce a user-friendly tool that can generate puns based on user input. The tool will use a carefully curated database of puns and implement state-of-the-art natural language processing techniques to create appropriate and humorous puns. The tool will have a command-line interface that will accept input from users, and output the generated puns.
+
+## Usage
+Each component's subdirectory contains a `README` detailing usage of each module.
+
+## Dependencies
+The cumulative used Python packages beyond the standard library are listed in `requirements.txt`. However, not all of these packages are necessary for all of the components. Each component's subdirectory contains a `README.md` with a table that displays the dependencies per module.
