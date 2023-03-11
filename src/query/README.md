@@ -23,3 +23,12 @@ cat word_on_each_line.txt | python3 query_rhymes.py 'path/to/db' --mode word
 ```sh
 python3 query_missing_phonetics.py 'path/to/db'
 ```
+
+
+## dependencies
+required libraries outside of the standard library
+| module name                   | requests |
+| ----------------------------- | -------- |
+| `query_rhymes.py`             | +        |
+| `query_missing_phonetics.py`  |          |
+
