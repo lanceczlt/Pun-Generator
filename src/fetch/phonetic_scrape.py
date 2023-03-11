@@ -126,16 +126,25 @@ def packJSON(word):
 
     source = {
         "site_name": 'Dictionary.com',
+        "type": "dictionary",
+        "language": "english",
         "URL": 'https://www.dictionary.com/browse/' + word,
     }
 
+    spellings = getSpellings(word)
+    if spellings is None or not spellings:
+        return None
+
+    phonetics = getPhonetic(word)
     json_schema = {
         "type": "word",
-        "spellings": getSpellings(word),
-        "phonetics": getPhonetic(word),
-        "source": source
+        "spellings": spellings,
+        # "phonetics": getPhonetic(word),
+        "source": source,
     }
- 
+    if phonetics is not None and phonetics:
+        json_schema["phonetics"] = phonetics
+
     output = json.dumps(json_schema)
     return output
 
