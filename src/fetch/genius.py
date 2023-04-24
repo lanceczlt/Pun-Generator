@@ -30,8 +30,8 @@ def scrape_genius(url):
     """
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
-    lyrics = soup.find_all(
-        'div', class_='Lyrics__Container-sc-1ynbvzw-6 YYrds')
+
+    lyrics = soup.find_all('div', attrs={"data-lyrics-container": True})
 
     result_string = ""
 
