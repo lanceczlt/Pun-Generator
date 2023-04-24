@@ -13,11 +13,9 @@ load_dotenv()
 
 """
 TODO: Abstract retrieval of song metadata.
-
 Currently, songs URLs are either 
     - retrieved via the Genius API search (which already yields song metadata)
     - scraped from top 100 charts using Selenium (along with song_id)
-
 --> Write a function that takes in flexible arguments so it can output song metadata for either option
 --> Goal is to end up with scrape lyrics function, retrieve metadata function, output as JSON function
 """
@@ -25,10 +23,8 @@ Currently, songs URLs are either
 
 def scrape_genius(url):
     """Scrapes lyrics from the input Genius Lyrics song url
-
     Args:
         url (string): A link to a Genius Lyrics song page
-
     Returns:
         list: A list of the scraped lyrics
     """
@@ -51,10 +47,8 @@ def scrape_genius(url):
 
 def fetch_genius(artist):
     """Scrapes all relevant song lyrics related to input artist.
-
     Args:
         artist (string): An artist to search for 
-
     Returns:
         list: A list of JSON where each JSON contains 
             a unique set of lowercase phrases from one of the artist's song lyrics along with relevant metadata
