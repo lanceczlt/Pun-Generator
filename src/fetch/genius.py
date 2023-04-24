@@ -115,12 +115,8 @@ def fetch_genius(artist):
     return output_json_list
 
 
-def main():
+if __name__ == "__main__":
     artist = input("Enter an artist's name:")
     json_list = fetch_genius(artist)
     for json in json_list:
         print(json)
-
-
-if __name__ == "__main__":
-    main()
