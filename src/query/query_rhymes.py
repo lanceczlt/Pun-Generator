@@ -29,22 +29,34 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
     for word in words:
         rhyming_words.update(find_rhymes_api(word))
 
-    rhyming_phrases: set[Tuple[str, str]] = set()
+    rhyming_phrases: List[Dict[str, str]] = []
+
     for word in rhyming_words:
-        query = "SELECT phrase FROM phrase WHERE phrase LIKE ?"
-        # limiting to 20 for each word currently
-        for row in cursor.execute(query, (f"% {word}",)).fetchmany(20):
-            rhyming_phrases.add((word, row[0]))
+         query = """
+            SELECT DISTINCT s.name, m.val, p.phrase
+            FROM phrase p
+            JOIN phrase_src ps ON ps.phrase_id = p.phrase_id
+            JOIN source s ON s.src_id = ps.src_id
+            JOIN source_metadata sm ON sm.src_id = s.src_id
+            JOIN metadata m ON m.metadata_id = sm.metadata_id
+            WHERE p.phrase LIKE ? AND m.tag_id = 1
+        """
+         for row in cursor.execute(query, (f"% {word}",)):
+            source_name, metadata_val, phrase = row
+            metadata = {"source": source_name, "value": metadata_val}
 
-    results = []
-    for phrase_tuple in rhyming_phrases:
-        rhyme_word = phrase_tuple[0]
-        phrase = phrase_tuple[1]
-        rhymed_phrase = phrase.replace(f" {rhyme_word}", f" {words[0]}")
-        result = f"original phrase: {phrase}\nrhymed phrase: {rhymed_phrase}\n"
-        results.append(result)
+            for rhyme_word in rhyming_words:
+                rhymed_phrase = phrase.replace(f" {word}", f" {rhyme_word}")
+                original_phrase = " ".join(input).replace(word, rhyme_word)
 
-    return results
+                rhyming_phrases.append({
+                    "source_name": source_name,
+                    "metadata": metadata,
+                    "original_phrase": original_phrase,
+                    "rhymed_phrase": rhymed_phrase
+                })
+
+    return rhyming_phrases
 
 
 

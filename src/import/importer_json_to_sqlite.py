@@ -47,7 +47,7 @@ tables: list[tuple[str, list[str]]] = [
             "FOREIGN KEY(tag_id) REFERENCES tag(tag_id)",
         ],
     ),
-    ("source", ["src_id INTEGER PRIMARY KEY"]),
+    ("source", ["src_id INTEGER PRIMARY KEY", "name TEXT",]),
     (
         "source_metadata",
         [
@@ -228,7 +228,9 @@ def insert_source(
     if source is None:
         return ABSENT_SOURCE_ID
 
-    src_id = source_to_id(cursor)
+    source_name = source.get("name", "")
+    src_id = source_to_id(cursor, source_name)
+
     for tag_name, val in source.items():
         vals = [val] if isinstance(val, str) else val
         tag_id = tag_to_id(cursor, tag_name)
@@ -239,11 +241,17 @@ def insert_source(
     return src_id  # type: ignore
 
 
-def source_to_id(cursor: sqlite3.Cursor):
+def source_to_id(cursor: sqlite3.Cursor, source_name: str):
     """
     Inserts the source and returns the new ID
     """
-    cursor.execute("INSERT INTO source DEFAULT VALUES")
+    row = cursor.execute(
+        "SELECT src_id FROM source WHERE name = ?", [source_name]
+    ).fetchone()
+    if row is not None:
+        return row[0]
+    
+    cursor.execute("INSERT INTO source(name) VALUES(?)", [source_name])
     return cursor.lastrowid
 
 

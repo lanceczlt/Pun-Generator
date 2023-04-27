@@ -15,7 +15,7 @@ def read_anime_quotes(anime_quotes_path: str) -> List[Dict]:
                 {
                     "type": "phrase",
                     "phrases": [row["Quote"]],
-                    "source": {"name": row["Anime"], "author": row["Character"]},
+                    "source": {"name": "Anime", "title": row["Anime"], "author": row["Character"]},
                 }
             )
     return anime_quotes
@@ -53,7 +53,7 @@ def read_top_movies(top_5000_movies_path: str) -> List[Dict]:
         reader = csv.reader(csvfile)
         source_name = next(reader)[0]
         phrases = [row[0] for row in reader]
-        top_movies = [{"type": "phrase", "phrases": phrases, "source": {"name": source_name}}]
+        top_movies = [{"type": "phrase", "phrases": phrases, "source": {"name": "Movies"}}]
     return top_movies
 
 def read_urban_dict(urbandict_words_path: str) -> List[Dict]:
