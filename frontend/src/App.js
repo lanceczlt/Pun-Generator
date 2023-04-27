@@ -1,6 +1,6 @@
 import logo from './garlic.png'
 import './App.css';
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, APIService, props } from 'react'
 import axios from 'axios';
 
 // 1. import `ChakraProvider` component
@@ -10,29 +10,77 @@ import { Card, CardHeader, CardBody, Box, Button, CheckboxGroup } from '@chakra-
 
 function App() {
 
+  //form word input
   const [input, setInput] = useState('');
+
+  //filter checkbox inputs
+  const [lyric, setLyric] = useState('');
+  const [phrase, setPhrase] = useState('');
+  const [urban, setUrban] = useState('');
+  const [joke, setJoke] = useState('');
+  const [proverb, setProverb] = useState('');
+  const [quote, setQuote] = useState('');
+  const [lang, setLang] = useState('');
+  const [nsfw, setNSFW] = useState('');
+
+
+  //receive api call from script
   const [output, setOutput] = useState('');
+  const [data, setData] = useState('');
 
-
+  //receive script output 
   useEffect(() => {
-    axios.get('/results')
-      .then(response => {
-        setOutput(response.data.output);
-      })
-      .catch(error => {
-        console.log(error);
-      });
-  }, []);
+    fetch("/").then(
+      res => res.json()
+    ).then(
+      data => {
+        setData(data)
+        console.log("data from flask " + data)
+      }
+    )
+  })
 
-  // const handleSubmit = (event) => {
-  //   event.preventDefault();
 
-  // };
+  // function getData() {
+  //   axios({
+  //     method: "GET",
+  //     url: "/",
+  //   })
+  //     .then((response) => {
+  //       const res = response.data
+  //       setOutput(({
+  //         outputRes: res.output
+  //       }))
+  //     }).catch((error) => {
+  //       if (error.response) {
+  //         console.log(error.response)
+  //         console.log(error.response.status)
+  //         console.log(error.response.headers)
+  //       }
+  //     })
+  // }
+  // getData()
+
+  // const insertArticle = () => {
+  //   APIService.InsertArticle({ input })
+  //     .then((response) => props.insertedArticle(response))
+  //     .catch(error => console.log('error', error))
+  // }
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    // getData()
+    // insertArticle()
+    setInput('')
+    setLyric('')
+    setPhrase('')
+  }
+
 
 
   return (
     <ChakraProvider>
-      <form >
+      <form onSubmit={(event) => handleSubmit(event)}>
         <FormControl >
           <SimpleGrid columns={2} p={20}>
             <Card variant={'outline'} borderColor={'gray'} background={'gray.50'}>
@@ -50,8 +98,8 @@ function App() {
 
               </CardHeader>
               <CardBody>
-                <Box w='md' h='150px' p={4} borderWidth='2px' overflowY={'scroll'}>
-                  <Text> {output}</Text>
+                <Box w='md' h='150px' p={4} borderWidth='2px' overflowY={'scroll'} >
+                  <Text> {data.output}</Text>
                 </Box>
               </CardBody>
             </Card>
@@ -66,7 +114,11 @@ function App() {
                     <CheckboxGroup colorScheme='green'>
                       <HStack>
                         <Stack spacing={[1, 5]} direction={['row', 'column']}>
-                          <Checkbox value='lyrics'>Lyrics</Checkbox>
+                          <Checkbox
+                            value='lyrics'
+                            checked={lyric}
+                            onChange={(e) => this.setState({ checkLyric: e.target.checked })}
+                          >Lyrics</Checkbox>
                           <Checkbox value='phrases'>Phrases</Checkbox>
                           <Checkbox value='urban'>Urban</Checkbox>
                         </Stack>
@@ -98,5 +150,6 @@ function App() {
     </ChakraProvider >
   )
 }
+
 
 export default App;
