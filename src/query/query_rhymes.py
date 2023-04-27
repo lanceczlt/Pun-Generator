@@ -2,10 +2,12 @@ import sqlite3 as sql
 import argparse
 import requests
 import itertools as its
+import re
 from collections.abc import Iterable
+import json
 
 API_BASE_URL = "https://api.datamuse.com/words"
-
+replace_word = lambda string, word, substitution_word: string.replace(word, substitution_word, 1)
 
 def find_rhymes_api(word: str) -> Iterable[str]:
     params = {
@@ -24,37 +26,43 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
         words = list(its.chain.from_iterable(item.split() for item in input))
     elif mode == "word":
         words = input
+    
+    input_word = words[0]
 
     rhyming_words: set[str] = set()
     for word in words:
         rhyming_words.update(find_rhymes_api(word))
 
     rhyming_phrases: List[Dict[str, str]] = []
-
-    for word in rhyming_words:
+    seen_phrases = set()
+    for rhyme_word in rhyming_words:
          query = """
-            SELECT DISTINCT s.name, m.val, p.phrase
-            FROM phrase p
-            JOIN phrase_src ps ON ps.phrase_id = p.phrase_id
-            JOIN source s ON s.src_id = ps.src_id
-            JOIN source_metadata sm ON sm.src_id = s.src_id
-            JOIN metadata m ON m.metadata_id = sm.metadata_id
-            WHERE p.phrase LIKE ? AND m.tag_id = 1
-        """
-         for row in cursor.execute(query, (f"% {word}",)):
-            source_name, metadata_val, phrase = row
-            metadata = {"source": source_name, "value": metadata_val}
+                SELECT p.phrase, s.name, m.val
+                FROM phrase p
+                JOIN phrase_src ps ON ps.phrase_id = p.phrase_id
+                JOIN source s ON s.src_id = ps.src_id
+                JOIN source_metadata sm ON sm.src_id = s.src_id
+                JOIN metadata m ON m.metadata_id = sm.metadata_id
+                WHERE p.phrase LIKE ? 
+                GROUP BY p.phrase, s.name, m.val
+            """
+         
+         for row in cursor.execute(query, (f"% {rhyme_word}",)):
+            phrase, source_name, metadata = row
+            phrase = phrase.lower()
+            if phrase in seen_phrases:
+                continue
 
-            for rhyme_word in rhyming_words:
-                rhymed_phrase = phrase.replace(f" {word}", f" {rhyme_word}")
-                original_phrase = " ".join(input).replace(word, rhyme_word)
+            metadata = {"source": source_name}
+            rhymed_phrase = replace_word(phrase, rhyme_word, input_word)
 
-                rhyming_phrases.append({
-                    "source_name": source_name,
-                    "metadata": metadata,
-                    "original_phrase": original_phrase,
-                    "rhymed_phrase": rhymed_phrase
-                })
+            rhyming_phrases.append({
+                "original_phrase": phrase,
+                "rhymed_phrase": rhymed_phrase,
+                "metadata": metadata,
+            })
+
+            seen_phrases.add(phrase)
 
     return rhyming_phrases
 
@@ -98,7 +106,5 @@ if __name__ == "__main__":
     input: list[str] = args.input
     mode: str = args.mode
 
-    # todo: handle stdin, etc
-    print(f"INPUT: {input}")
-    for result in find_rhymes(cursor, input, mode):
-        print(result)
+    results = find_rhymes(cursor, input, mode)
+    print(json.dumps(results))
