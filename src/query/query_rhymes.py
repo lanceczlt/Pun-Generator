@@ -9,8 +9,9 @@ import json
 API_BASE_URL = "https://api.datamuse.com/words"
 
 
-def replace_word(string, word, substitution_word): return string.replace(
-    word, substitution_word, 1)
+def replace_word(string, word, substitution_word):
+    pattern = re.compile(rf"\b{re.escape(word)}\b", re.IGNORECASE)
+    return pattern.sub(substitution_word, string, count=1)
 
 
 def find_rhymes_api(word: str) -> Iterable[str]:
@@ -23,7 +24,7 @@ def find_rhymes_api(word: str) -> Iterable[str]:
     return (result["word"] for result in response.json())
 
 
-def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[str], nsfw_enabled: bool) -> Iterable[str]:
+def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[str], nsfw_enabled: str) -> Iterable[str]:
     words: list[str]
 
     if mode == "phrase":
@@ -50,14 +51,23 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[s
         JOIN metadata m ON m.metadata_id = sm.metadata_id
         WHERE p.phrase LIKE ?
         AND s.name IN ({})
+        AND p.is_nsfw <= ?
     """.format(",".join("?"*len(filters)))
 
+    source_counts = {}
     for rhyme_word in rhyming_words:
-         params = (f"%{rhyme_word}%",) + tuple(filters)
+         params = (f"%{rhyme_word}%",) + tuple(filters)+ (nsfw_enabled,)
          for row in cursor.execute(query, params):
             phrase, source_name, metadata = row
             phrase = phrase.lower()
+
             if phrase in seen_phrases:
+                continue
+
+            if source_name not in source_counts:
+                source_counts[source_name] = 0
+
+            if source_counts[source_name] >= 5:
                 continue
 
             metadata = {"source": source_name}
@@ -70,6 +80,7 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[s
             })
 
             seen_phrases.add(phrase)
+            source_counts[source_name] += 1
 
     return rhyming_phrases
 
@@ -101,16 +112,18 @@ if __name__ == "__main__":
         wordblob: each item is split into words.
         phrase: each item is a phrase""",
     )
+
     parser.add_argument(
     "--filters",
     type=json.loads,
     default=[],
     help="JSON string representing a list of source names to include in the query results"
     )
+
     parser.add_argument(
     "--nsfw",
     action="store_true",
-    default=True,
+    default=False,
     help="include offensive words in the results"
     )
 
@@ -123,7 +136,7 @@ if __name__ == "__main__":
     input: list[str] = args.input
     mode: str = args.mode
     filters: list[str] = args.filters
-    nsfw_enabled = args.nsfw
+    nsfw_enabled = "1" if args.nsfw else "0"
 
     results = find_rhymes(cursor, input, mode, filters, nsfw_enabled)
     print(json.dumps(results))

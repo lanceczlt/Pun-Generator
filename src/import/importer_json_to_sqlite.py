@@ -120,6 +120,7 @@ tables: list[tuple[str, list[str]]] = [
         [
             "phrase_id INTEGER PRIMARY KEY",
             "phrase TEXT",
+            "is_nsfw BOOLEAN DEFAULT 0"
         ],
     ),
     (
