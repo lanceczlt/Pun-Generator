@@ -37,7 +37,7 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
     for word in words:
         rhyming_words.update(find_rhymes_api(word))
 
-    rhyming_phrases: List[Dict[str, str]] = []
+    rhyming_phrases: list[dict[str, str]] = []
     seen_phrases = set()
     for rhyme_word in rhyming_words:
         query = """
