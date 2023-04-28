@@ -19,14 +19,15 @@ def find_rhymes_api(word: str) -> Iterable[str]:
     return (result["word"] for result in response.json())
 
 
-def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str]:
+def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[str]) -> Iterable[str]:
     words: list[str]
 
     if mode == "phrase":
         words = list(its.chain.from_iterable(item.split() for item in input))
-    elif mode == "word":
+    elif mode == "word": 
         words = input
     
+    # for now...
     input_word = words[0]
 
     rhyming_words: set[str] = set()
@@ -35,19 +36,21 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
 
     rhyming_phrases: List[Dict[str, str]] = []
     seen_phrases = set()
+
+    query = """
+        SELECT DISTINCT p.phrase, s.name, m.val
+        FROM phrase p
+        JOIN phrase_src ps ON ps.phrase_id = p.phrase_id
+        JOIN source s ON s.src_id = ps.src_id
+        JOIN source_metadata sm ON sm.src_id = s.src_id
+        JOIN metadata m ON m.metadata_id = sm.metadata_id
+        WHERE p.phrase LIKE ?
+        AND s.name IN ({})
+    """.format(",".join("?"*len(filters)))
+
     for rhyme_word in rhyming_words:
-         query = """
-                SELECT p.phrase, s.name, m.val
-                FROM phrase p
-                JOIN phrase_src ps ON ps.phrase_id = p.phrase_id
-                JOIN source s ON s.src_id = ps.src_id
-                JOIN source_metadata sm ON sm.src_id = s.src_id
-                JOIN metadata m ON m.metadata_id = sm.metadata_id
-                WHERE p.phrase LIKE ? 
-                GROUP BY p.phrase, s.name, m.val
-            """
-         
-         for row in cursor.execute(query, (f"% {rhyme_word}",)):
+         params = (f"%{rhyme_word}%",) + tuple(filters)
+         for row in cursor.execute(query, params):
             phrase, source_name, metadata = row
             phrase = phrase.lower()
             if phrase in seen_phrases:
@@ -96,6 +99,12 @@ if __name__ == "__main__":
         wordblob: each item is split into words.
         phrase: each item is a phrase""",
     )
+    parser.add_argument(
+    "--filters",
+    type=json.loads,
+    default=[],
+    help="JSON string representing a list of source names to include in the query results"
+    )
 
     args = parser.parse_args()
 
@@ -105,6 +114,7 @@ if __name__ == "__main__":
 
     input: list[str] = args.input
     mode: str = args.mode
+    filters: list[str] = args.filters
 
-    results = find_rhymes(cursor, input, mode)
+    results = find_rhymes(cursor, input, mode, filters)
     print(json.dumps(results))
