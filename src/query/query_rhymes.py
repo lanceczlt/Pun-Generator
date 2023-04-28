@@ -7,7 +7,11 @@ from collections.abc import Iterable
 import json
 
 API_BASE_URL = "https://api.datamuse.com/words"
-replace_word = lambda string, word, substitution_word: string.replace(word, substitution_word, 1)
+
+
+def replace_word(string, word, substitution_word): return string.replace(
+    word, substitution_word, 1)
+
 
 def find_rhymes_api(word: str) -> Iterable[str]:
     params = {
@@ -26,7 +30,7 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
         words = list(its.chain.from_iterable(item.split() for item in input))
     elif mode == "word":
         words = input
-    
+
     input_word = words[0]
 
     rhyming_words: set[str] = set()
@@ -36,7 +40,7 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
     rhyming_phrases: List[Dict[str, str]] = []
     seen_phrases = set()
     for rhyme_word in rhyming_words:
-         query = """
+        query = """
                 SELECT p.phrase, s.name, m.val
                 FROM phrase p
                 JOIN phrase_src ps ON ps.phrase_id = p.phrase_id
@@ -46,8 +50,8 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
                 WHERE p.phrase LIKE ? 
                 GROUP BY p.phrase, s.name, m.val
             """
-         
-         for row in cursor.execute(query, (f"% {rhyme_word}",)):
+
+        for row in cursor.execute(query, (f"% {rhyme_word}",)):
             phrase, source_name, metadata = row
             phrase = phrase.lower()
             if phrase in seen_phrases:
@@ -67,8 +71,6 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str) -> Iterable[str
     return rhyming_phrases
 
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="punDB rhyme querier (Python)",
@@ -76,26 +78,26 @@ if __name__ == "__main__":
         Querys a DB instance for rhymes
         """,
     )
-    parser.add_argument("db_path", 
-        help="path to the DB instance to connect to"
-    )
+    parser.add_argument("db_path",
+                        help="path to the DB instance to connect to"
+                        )
     parser.add_argument("input",
-        nargs="+",
-        help="the input to find related rhymes for",
-    )
-    parser.add_argument( "--std-in",
-        help="if present, read input from stdin. each line corresponds to an input",
-    )
+                        nargs="+",
+                        help="the input to find related rhymes for",
+                        )
+    parser.add_argument("--std-in",
+                        help="if present, read input from stdin. each line corresponds to an input",
+                        )
     parser.add_argument("--mode",
-        # took out phrase for now
-        choices=["word", "wordblob"],
-        default="word",
-        help="""
+                        # took out phrase for now
+                        choices=["word", "wordblob"],
+                        default="word",
+                        help="""
         how to interpret the input.
         word: each item is a word.
         wordblob: each item is split into words.
         phrase: each item is a phrase""",
-    )
+                        )
 
     args = parser.parse_args()
 
