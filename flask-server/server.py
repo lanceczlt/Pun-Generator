@@ -24,9 +24,13 @@ def query():
         data = json.loads(request.data)
         word = data["input"]
 
+        # try:
         output = subprocess.check_output(
-            ['python', '../src/query/query_rhymes.py', '../db.sqlite', word, '--mode', 'word'])
+            ['python', '../src/query/query_rhymes.py', '../src/my_db.sqlite', word, '--mode', 'word'])
         return jsonify({'output': output.decode('utf-8')})
+        # except subprocess.CalledProcessError as e:
+        #     print(e.returncode)
+        #     pass
 
         # @app.route('/test')
         # def run_script():
