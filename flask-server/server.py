@@ -22,6 +22,7 @@ def query():
         data = json.loads(request.data)
         word = data["input"]
         filters = data["filters"]
+        nsfw = data["allowNSFW"]
 
         filter_list = []
         for filter_name, isSelected in filters.items():
@@ -30,9 +31,15 @@ def query():
 
         filter_str = json.dumps(filter_list)
 
+        params = ['python', '../src/query/query_rhymes.py', '../src/my_db.sqlite',
+                  word, '--filters', filter_str, '--mode', 'word']
+        if nsfw:
+            params.append('--nsfw')
+
+        print(params)
+
         try:
-            output = subprocess.check_output(
-                ['python', '../src/query/query_rhymes.py', '../src/my_db.sqlite', word, '--filters', filter_str, '--mode', 'word'])
+            output = subprocess.check_output(params)
         except subprocess.CalledProcessError as e:
             output = e.output
 
