@@ -110,7 +110,6 @@ if __name__ == "__main__":
     parser.add_argument(
     "--nsfw",
     action="store_true",
-    default=True,
     help="include offensive words in the results"
     )
 
