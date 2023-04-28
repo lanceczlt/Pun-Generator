@@ -106,7 +106,7 @@ def top100_link_to_api(url):
         language = iso_code
 
     source = {
-        "site_name": "Genius",
+        "name": "Genius",
         "url": song_url,
         "song_title": song_title.replace('\u200b', ''),
         "artist": artist_name.replace('\u200b', ''),

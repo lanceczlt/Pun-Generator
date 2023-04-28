@@ -17,7 +17,7 @@ def read_anime_quotes(anime_quotes_path: str) -> List[Dict]:
                     "phrases": [row["Quote"]],
                     "source": {"name": "Anime", "title": row["Anime"], "author": row["Character"]},
                 }
-            )
+            )   
     return anime_quotes
 
 def read_formal_idioms(formal_idioms_path: str) -> List[Dict]:
@@ -86,34 +86,41 @@ def main():
     static_idioms_path = os.path.join(data_dir, 'static_idioms.txt')
     top_5000_movies_path = os.path.join(data_dir, 'top_5000_movies.csv')
     urbandict_words_path = os.path.join(data_dir, 'urbandict_words.csv')
+    top100_lyrics_path = os.path.join(data_dir, 'top100.txt')
 
     anime_quotes = read_anime_quotes(anime_quotes_path)
-    print(f"Importing {len(anime_quotes)} anime quotes...")
+    print("Importing anime quotes...")
     import_data(anime_quotes, batch_size=100, name="anime quotes")
 
     formal_idioms = read_formal_idioms(formal_idioms_path)
-    print(f"Importing {len(formal_idioms)} formal idioms...")
+    print("Importing formal idioms...")
     import_data(formal_idioms, batch_size=100, name="formal idioms")
 
     phrases = read_common_phrases(phrases_path)
-    print(f"Importing {len(phrases)} common phrases...")
+    print("Importing common phrases...")
     import_data(phrases, batch_size=100, name="common phrases")
 
     static_idioms = read_static_idioms(static_idioms_path)
-    print(f"Importing {len(static_idioms)} static idioms...")
+    print("Importing static idioms...")
     import_data(static_idioms, batch_size=100, name="static idioms")
 
     top_movies = read_top_movies(top_5000_movies_path)
-    print(f"Importing {len(top_movies)} top movies...")
+    print("Importing top movies...")
     import_data(top_movies, batch_size=100, name="top movies")
 
     urban_dict = read_urban_dict(urbandict_words_path)
-    print(f"Importing {len(urban_dict)} urban dictionary words...")
+    print("Importing urban dictionary words...")
     import_data(urban_dict, batch_size=100, name="urban dictionary words")
 
+    with open(top100_lyrics_path, "r", encoding="utf-8") as f:
+        entries = []
+        for line in f:
+            entry = json.loads(line.strip())
+            entries.append(entry)
+        print("Importing data from top lyrics...")
+        import_data(entries, batch_size=100, name="top_100")
+
     print("Importing into SQLite is done!")
-
-
 
 if __name__ == "__main__":
     main()

@@ -23,7 +23,7 @@ def find_rhymes_api(word: str) -> Iterable[str]:
     return (result["word"] for result in response.json())
 
 
-def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[str]) -> Iterable[str]:
+def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[str], nsfw_enabled: bool) -> Iterable[str]:
     words: list[str]
 
     if mode == "phrase":
@@ -107,6 +107,12 @@ if __name__ == "__main__":
     default=[],
     help="JSON string representing a list of source names to include in the query results"
     )
+    parser.add_argument(
+    "--nsfw",
+    action="store_true",
+    default=True,
+    help="include offensive words in the results"
+    )
 
     args = parser.parse_args()
 
@@ -117,6 +123,7 @@ if __name__ == "__main__":
     input: list[str] = args.input
     mode: str = args.mode
     filters: list[str] = args.filters
+    nsfw_enabled = args.nsfw
 
-    results = find_rhymes(cursor, input, mode, filters)
+    results = find_rhymes(cursor, input, mode, filters, nsfw_enabled)
     print(json.dumps(results))
