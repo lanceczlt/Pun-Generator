@@ -24,7 +24,7 @@ def find_rhymes_api(word: str) -> Iterable[str]:
     return (result["word"] for result in response.json())
 
 
-def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[str], nsfw_enabled: str) -> Iterable[str]:
+def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[str], nsfw_enabled: bool) -> Iterable[str]:
     words: list[str]
 
     if mode == "phrase":
@@ -51,12 +51,15 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[s
         JOIN metadata m ON m.metadata_id = sm.metadata_id
         WHERE p.phrase LIKE ?
         AND s.name IN ({})
-        AND p.is_nsfw <= ?
     """.format(",".join("?"*len(filters)))
 
+    if not nsfw_enabled:
+        query += " AND p.is_nsfw == 0"
+
+    
     source_counts = {}
     for rhyme_word in rhyming_words:
-         params = (f"%{rhyme_word}%",) + tuple(filters)+ (nsfw_enabled,)
+         params = (f"%{rhyme_word}%",) + tuple(filters)
          for row in cursor.execute(query, params):
             phrase, source_name, metadata = row
             phrase = phrase.lower()
@@ -67,7 +70,7 @@ def find_rhymes(cursor: sql.Cursor, input: list[str], mode: str, filters: list[s
             if source_name not in source_counts:
                 source_counts[source_name] = 0
 
-            if source_counts[source_name] >= 5:
+            if source_counts[source_name] >= 10:
                 continue
 
             metadata = {"source": source_name}
@@ -121,10 +124,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-    "--nsfw",
-    action="store_true",
-    default=False,
-    help="include offensive words in the results"
+        "--nsfw",
+        action="store_true",
+        default=False,
+        help="include offensive words in the results"
     )
 
     args = parser.parse_args()
@@ -136,7 +139,7 @@ if __name__ == "__main__":
     input: list[str] = args.input
     mode: str = args.mode
     filters: list[str] = args.filters
-    nsfw_enabled = "1" if args.nsfw else "0"
 
-    results = find_rhymes(cursor, input, mode, filters, nsfw_enabled)
+
+    results = find_rhymes(cursor, input, mode, filters, args.nsfw)
     print(json.dumps(results))
