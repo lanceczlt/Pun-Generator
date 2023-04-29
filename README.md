@@ -16,6 +16,8 @@ The PunGenT project is expected to produce a user-friendly tool that can generat
 
 ## Usage
 Each component's subdirectory contains a `README` detailing usage of each module.
+To use with the React frontend, `cd` into the `flask-server` directory and `python -m flask --app ./server.py run`.
+Then follow the instructions in the frontend `README` to open the client.
 
 ## Dependencies
 The cumulative used Python packages beyond the standard library are listed in `requirements.txt`. However, not all of these packages are necessary for all of the components. Each component's subdirectory contains a `README.md` with a table that displays the dependencies per module.
